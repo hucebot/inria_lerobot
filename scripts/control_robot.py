@@ -140,13 +140,15 @@ class So100Robot:
                 delta_angles = [
                     current - initial
                     for current, initial in zip(leader_positions, self.initial_positions_leader)
-                ] if self.require_leader_arm else [0]*len(IDs)
+                ] if self.require_leader_arm else [0] * len(IDs)
 
                 target_angles = [
                     init_follower + delta
                     for init_follower, delta in zip(self.initial_positions_follower, delta_angles)
                 ]
-
+                
+                self.current_target_angles = target_angles.copy()
+                
                 self.set_follower_positions(target_angles)
 
                 follower_positions = self.get_follower_positions()
@@ -173,7 +175,6 @@ class So100Robot:
                 if record_dataset:
                     print("-" * 30 + bcolors.WARNING + " Recording " + bcolors.ENDC + "-" * 30)
                     self.record_dataset(dataset_task=dataset_task)
-
                 else:
                     print("-" * 30 + bcolors.WARNING + " Teleoperation " + bcolors.ENDC + "-" * 30)
 
@@ -191,6 +192,7 @@ class So100Robot:
         if record_dataset:
             self.save_dataset_to_npy(dataset_task=dataset_task)
 
+
     def record_dataset(self, dataset_task=""):
         """
         Record a single dataset entry (timestamp, follower positions, follower speeds) to
@@ -201,10 +203,11 @@ class So100Robot:
         timestamp = time.time()
         data_tuple = (
             timestamp,
-            self.current_follower_positions.copy(),
+            self.current_target_angles.copy(),
             self.current_follower_speeds.copy()
         )
         self.dataset_records.append(data_tuple)
+
 
     def save_dataset_to_npy(self, dataset_task=""):
         """
