@@ -4,7 +4,7 @@
 https://opensource.org/licenses/BSD-3-Clause)
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
 
-Custom package based on [lerobot](https://github.com/huggingface/lerobot). The package is used to control the arm [So100](https://github.com/huggingface/lerobot/blob/main/examples/10_use_so100.md), but we implement our own pipeline to trian the policy.
+Custom package based on [lerobot](https://github.com/huggingface/lerobot). The package is used to control the arm [So100](https://github.com/huggingface/lerobot/blob/main/examples/10_use_so100.md), but we implement our own pipeline to control the robot, create the dataset and to train a policy.
 
 # Get Started
 
