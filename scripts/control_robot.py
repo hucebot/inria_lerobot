@@ -170,10 +170,12 @@ class So100Robot:
                         bcolors.OKBLUE + f"Follower speed: {follower_speeds[motor_i]}" + bcolors.ENDC
                     )
 
-                print("-" * 70)
-
                 if record_dataset:
+                    print("-" * 30 + bcolors.WARNING + " Recording " + bcolors.ENDC + "-" * 30)
                     self.record_dataset(dataset_task=dataset_task)
+
+                else:
+                    print("-" * 30 + bcolors.WARNING + " Teleoperation " + bcolors.ENDC + "-" * 30)
 
                 time.sleep(1 / RATE)
 
