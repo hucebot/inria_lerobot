@@ -43,13 +43,17 @@ python script/control_robot.py --mode=teleoperation
 It's important to note that the teleoperation it used the zero position as the one first detected. So the idea is tu put both arm in the same position and then run the script. The script will detect the zero position and use it as the reference to send the delta movement for each joint.
 
 ## Record Dataset
-TODO
+
+We provide a script to record the dataset. The script will record the dataset in the `dataset` folder with the task_name as a subfolder. The dataset will be recorded in the following format:
+
 ```bash
 python scripts/control_robot.py --mode=teleoperation --record_dataset=true --dataset_task="Simple cross motion"
 ```
 
 ## Replay Dataset
-TODO
+
+We provide a script to replay a specific episode of the dataset. The script will replay the dataset in the `dataset` folder with the task_name as a subfolder. The dataset will be replayed in the following format:
+
 ```bash
 python scripts/control_robot.py --dataset_task="Simple cross motion" --replay_episode=00001
 ```
