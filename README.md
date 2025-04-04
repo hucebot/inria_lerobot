@@ -50,6 +50,10 @@ We provide a script to record the dataset. The script will record the dataset in
 python scripts/control_robot.py --record_dataset=true --dataset_task="Simple cross motion"
 ```
 
+Where:
+- `--record_dataset=true`: This flag indicates that the script should record the dataset.
+- `--dataset_task="Simple cross motion"`: This is the name of the task that will be used to create the subfolder in the dataset folder.
+
 ## Replay Dataset
 
 We provide a script to replay a specific episode of the dataset. The script will replay the dataset in the `dataset` folder with the task_name as a subfolder. The dataset will be replayed in the following format:
@@ -57,6 +61,9 @@ We provide a script to replay a specific episode of the dataset. The script will
 ```bash
 python scripts/control_robot.py --dataset_task="Simple cross motion" --replay_episode=00000
 ```
+Where:
+- `--dataset_task="Simple cross motion"`: This is the name of the task to be replayed.
+- `--replay_episode=00000`: This is the name of the episode to be replayed. The episode name is the same as the one used to record the dataset.
 
 ## Trainning
 TODO
