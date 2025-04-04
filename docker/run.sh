@@ -22,6 +22,7 @@ if [ $isRunning -eq 0 ]; then
         --device /dev/bus/usb \
         -v `pwd`/../scripts:/inria_lerobot/scripts \
         -v `pwd`/../configuration/calibration:/inria_lerobot/calibration \
+        -v `pwd`/../datasets:/inria_lerobot/datasets \
         -v `pwd`/../configuration/configs.py:/inria_lerobot/scripts/config.py \
         -v /media/:/media \
         -w /inria_lerobot \

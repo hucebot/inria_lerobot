@@ -44,6 +44,15 @@ It's important to note that the teleoperation it used the zero position as the o
 
 ## Record Dataset
 TODO
+```bash
+python scripts/control_robot.py --mode=teleoperation --record_dataset=true --dataset_task="Simple cross motion"
+```
+
+## Replay Dataset
+TODO
+```bash
+python scripts/control_robot.py --dataset_task="Simple cross motion" --replay_episode=00001
+```
 
 ## Trainning
 TODO
