@@ -40,4 +40,5 @@ RUN apt-get install -y --reinstall \
 
 RUN pip install pyserial \
     feetech-servo-sdk \
-    pynput
+    pynput \
+    numpy
