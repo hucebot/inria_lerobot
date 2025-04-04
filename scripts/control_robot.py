@@ -17,7 +17,19 @@ motor_names = calib_follower["motor_names"]
 IDs = list(range(1, len(motor_names) + 1))
 
 class So100Robot:
+    """
+    This class manages the control of a follower robotic arm, and optionally a leader arm.
+    It handles serial port connections, motor initialization, data recording, and replaying
+    of episodes based on saved data.
+    """
+
     def __init__(self, require_leader_arm: bool = True):
+        """
+        Initialize the So100Robot.
+
+        :param require_leader_arm: Indicates whether to use a leader arm. If True, creates and
+                                   connects the leader arm. If False, only uses the follower arm.
+        """
         self.require_leader_arm = require_leader_arm
 
         self.port_follower = PortHandler(PORT_FOLLOWER)
@@ -52,8 +64,11 @@ class So100Robot:
 
     def create_arms(self):
         """
-        Create FeetechMotor objects for follower arm always.
-        Create them for leader arm only if require_leader_arm is True.
+        Create FeetechMotor objects for the follower arm, and for the leader arm if required.
+
+        :return: A tuple (leader_arm, follower_arm).
+                 leader_arm: List of FeetechMotor objects (empty if leader arm is not used).
+                 follower_arm: List of FeetechMotor objects for the follower arm.
         """
         follower_arm = [
             FeetechMotor(ID, self.port_follower, PacketHandler(PROTOCOL_END)) for ID in IDs
@@ -70,16 +85,29 @@ class So100Robot:
 
     def get_leader_positions(self):
         """
-        Return zeros or skip reading if leader arm is not used.
+        Retrieve the current position in degrees of each motor in the leader arm.
+        If the leader arm is not used, return a list of zeros.
+
+        :return: A list of angles (floats) for each motor of the leader arm, or zeros if disabled.
         """
         if not self.require_leader_arm:
             return [0.0] * len(IDs)
         return [motor.read_position() for motor in self.leader_arm]
 
     def get_follower_positions(self):
+        """
+        Retrieve the current position in degrees of each motor in the follower arm.
+
+        :return: A list of angles (floats) for each motor of the follower arm.
+        """
         return [motor.read_position() for motor in self.follower_arm]
 
     def get_follower_speeds(self):
+        """
+        Retrieve the current speed of each motor in the follower arm.
+
+        :return: A list of speeds (integers) for each motor of the follower arm.
+        """
         speeds = []
         for motor in self.follower_arm:
             speed_value = motor.read_speed()
@@ -87,11 +115,24 @@ class So100Robot:
         return speeds
 
     def set_follower_positions(self, angles):
+        """
+        Convert angles in degrees to raw position values and send them to the follower motors.
+
+        :param angles: List of angles in degrees to move each follower motor to.
+        """
         for motor, angle in zip(self.follower_arm, angles):
             target_raw = motor.angle_to_raw(angle)
             motor.write_position(target_raw)
 
     def main_loop(self, record_dataset=False, dataset_task=""):
+        """
+        Main control loop. Continuously reads positions from the leader arm (if enabled),
+        calculates the difference relative to the initial leader angles, and sets the
+        follower arm to match that difference. Prints current positions and speeds.
+
+        :param record_dataset: If True, data will be recorded every iteration.
+        :param dataset_task: Task name or label used for dataset organization.
+        """
         while True:
             try:
                 leader_positions = self.get_leader_positions()
@@ -121,7 +162,10 @@ class So100Robot:
                             if self.require_leader_arm else "Leader angle: [disabled], "
                         ) +
                         bcolors.OKBLUE + f"Target angle: {target_angles[motor_i]:.2f}, " + bcolors.ENDC +
-                        (f"Delta angle: {delta_angles[motor_i]:.2f}, " if self.require_leader_arm else "") +
+                        (
+                            f"Delta angle: {delta_angles[motor_i]:.2f}, "
+                            if self.require_leader_arm else ""
+                        ) +
                         bcolors.OKBLUE + f"Follower angle: {follower_positions[motor_i]:.2f}, " + bcolors.ENDC +
                         bcolors.OKBLUE + f"Follower speed: {follower_speeds[motor_i]}" + bcolors.ENDC
                     )
@@ -146,6 +190,12 @@ class So100Robot:
             self.save_dataset_to_npy(dataset_task=dataset_task)
 
     def record_dataset(self, dataset_task=""):
+        """
+        Record a single dataset entry (timestamp, follower positions, follower speeds) to
+        the internal list `dataset_records`.
+
+        :param dataset_task: Task name or label for consistency (not used in the filename here).
+        """
         timestamp = time.time()
         data_tuple = (
             timestamp,
@@ -155,6 +205,13 @@ class So100Robot:
         self.dataset_records.append(data_tuple)
 
     def save_dataset_to_npy(self, dataset_task=""):
+        """
+        Save all recorded data (timestamps, positions, speeds) to a .npy file. The file
+        will be placed in '/inria_lerobot/datasets/<dataset_task>/', with an incremented
+        numeric filename.
+
+        :param dataset_task: Task name or label, used to determine the folder path.
+        """
         dataset_task = dataset_task.lower().replace(" ", "_")
         dir_path = os.path.join('/inria_lerobot/datasets/', dataset_task)
         
@@ -186,6 +243,13 @@ class So100Robot:
             + bcolors.ENDC)
 
     def replay_episode(self, replay_episode, dataset_task):
+        """
+        Replay a recorded episode from a .npy file, moving the follower arm to the
+        recorded positions at the correct timing.
+
+        :param replay_episode: Name of the .npy file (without extension) to replay.
+        :param dataset_task: Task name or label, used to determine the folder path.
+        """
         dataset_task = dataset_task.lower().replace(" ", "_")
         dataset_path = os.path.join('/inria_lerobot/datasets/', dataset_task, replay_episode + ".npy")
         if not os.path.exists(dataset_path):
@@ -219,7 +283,8 @@ class So100Robot:
 
     def read_initial_state(self):
         """
-        If we don't require the leader arm, skip reading it.
+        Read and store the initial angles of the leader (if used) and follower arms.
+        These angles serve as reference points for differential control in the main loop.
         """
         try:
             if self.require_leader_arm:
@@ -242,6 +307,9 @@ class So100Robot:
             quit()
 
     def close_ports(self):
+        """
+        Close the serial ports for both the leader (if exists) and follower arms.
+        """
         try:
             if self.port_leader is not None:
                 self.port_leader.closePort()
@@ -252,14 +320,17 @@ class So100Robot:
 
 def run_robot(mode: str, record_dataset: bool, replay_episode: str, dataset_task: str):
     """
-    If we are replaying an episode, we don't need the leader arm.
-    Otherwise, in teleoperation we require the leader arm.
+    Create and run the So100Robot, depending on the mode and other arguments.
+
+    :param mode: String indicating the operation mode (e.g., "teleoperation").
+    :param record_dataset: Boolean, if True then the dataset is recorded during teleoperation.
+    :param replay_episode: String name (without extension) of the .npy file to replay.
+    :param dataset_task: String name or label for the dataset task (used for saving or replaying).
     """
     if record_dataset and not dataset_task:
         print(bcolors.FAIL + "Error: --dataset_task cannot be empty if --record_dataset is True." + bcolors.ENDC)
         exit(1)
 
-    # If replay_episode is given, skip the leader arm.
     require_leader_arm = (not replay_episode)
 
     robot = So100Robot(require_leader_arm=require_leader_arm)
