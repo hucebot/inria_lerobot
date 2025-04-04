@@ -276,7 +276,7 @@ class So100Robot:
 
             self.set_follower_positions(all_positions[i])
 
-            print(bcolors.OKBLUE + f"[Replay] Step {i+1}/{len(timestamps)} at offset {offset:.2f}s" + bcolors.ENDC)
+            print(bcolors.WARNING + "[Replay]" + bcolors.ENDC +  bcolors.OKBLUE + f" Step {i+1}/{len(timestamps)} at offset {offset:.2f}s" + bcolors.ENDC)
 
         self.close_ports()
         print(bcolors.OKGREEN + "Replay finished. Ports closed." + bcolors.ENDC)
@@ -315,8 +315,10 @@ class So100Robot:
                 self.port_leader.closePort()
             self.port_follower.closePort()
             print(bcolors.WARNING + "Ports closed." + bcolors.ENDC)
-        except:
-            pass
+        except AttributeError as e:
+            print(bcolors.FAIL + "AttributeError closing ports: " + str(e) + bcolors.ENDC)
+        except Exception as e:
+            print(bcolors.FAIL + "Unexpected error closing ports: " + str(e) + bcolors.ENDC)
 
 def run_robot(mode: str, record_dataset: bool, replay_episode: str, dataset_task: str):
     """
