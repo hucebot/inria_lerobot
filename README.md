@@ -1,7 +1,6 @@
 # inria_lerobot
 
-[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](
-https://opensource.org/licenses/BSD-3-Clause)
+[![License](https://img.shields.io/badge/License-MIT--Clause-blue.svg)](https://opensource.org/license/mit)
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
 
 Custom package based on [lerobot](https://github.com/huggingface/lerobot). The package is used to control the arm [So100](https://github.com/huggingface/lerobot/blob/main/examples/10_use_so100.md), but we implement our own pipeline to control the robot, create the dataset and to train a policy.
