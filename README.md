@@ -40,6 +40,8 @@ We prepare a script to teleoeprate the robot. You can use the following command 
 python script/control_robot.py --mode=teleoperation
 ```
 
+It's important to note that the teleoperation it used the zero position as the one first detected. So the idea is tu put both arm in the same position and then run the script. The script will detect the zero position and use it as the reference to send the delta movement for each joint.
+
 ## Record Dataset
 TODO
 
