@@ -286,6 +286,10 @@ class So100Robot:
         try:
             for cap in self.video_captures:
                 cap.release()
+            print(bcolors.OKGREEN + "Cameras released." + bcolors.ENDC)
+            for motor in self.follower_arm:
+                motor.disable_torque()
+            print(bcolors.OKGREEN + "Follower motors disabled." + bcolors.ENDC)
             if self.port_leader is not None:
                 self.port_leader.closePort()
             self.port_follower.closePort()

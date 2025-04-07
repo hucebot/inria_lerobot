@@ -30,6 +30,9 @@ class FeetechMotor:
     def enable_torque(self):
         self.packetHandler.write1ByteTxRx(self.port, self.ID, ADDR_SCS_TORQUE_ENABLE, 1)
 
+    def disable_torque(self):
+        self.packetHandler.write1ByteTxRx(self.port, self.ID, ADDR_SCS_TORQUE_ENABLE, 0)
+
     def read_speed(self):
         data, result, error = self.packetHandler.read4ByteTxRx(self.port, self.ID, ADDR_STS_PRESENT_POSITION)
         if result == COMM_SUCCESS and error == 0:
