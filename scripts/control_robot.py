@@ -119,7 +119,6 @@ class So100Robot:
         """
         while True:
             try:
-                # Capture and display camera frames each loop
                 camera_frames = []
                 for idx, cap in enumerate(self.video_captures):
                     ret, frame = cap.read()
@@ -128,9 +127,8 @@ class So100Robot:
                     else:
                         frame = None
                     camera_frames.append(frame)
-                cv2.waitKey(1)  # Allows the OpenCV window to refresh
+                cv2.waitKey(1)
 
-                # Leader/follower motor logic
                 leader_positions = self.get_leader_positions()
                 delta_angles = (
                     [c - i for c, i in zip(leader_positions, self.initial_positions_leader)]
@@ -179,7 +177,7 @@ class So100Robot:
         if record_dataset:
             self.save_dataset_to_npy(dataset_task=dataset_task)
 
-    def record_dataset(self, camera_frames, dataset_task=""):
+    def record_dataset(self, camera_frames):
         """Records a single step: timestamp, target angles, speeds, and camera frames."""
         timestamp = time.time()
         data_tuple = (
@@ -231,7 +229,7 @@ class So100Robot:
         data_dict = np.load(dataset_path, allow_pickle=True).item()
         timestamps = data_dict["timestamps"]
         all_positions = data_dict["positions"]
-        all_frames = data_dict["camera_frames"]  # list of lists of frames
+        all_frames = data_dict["camera_frames"]
 
         start_time = time.time()
         base_timestamp = timestamps[0]
