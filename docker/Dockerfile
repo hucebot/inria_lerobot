@@ -41,3 +41,4 @@ RUN pip install pyserial \
 
 ##### 
 RUN pip install torch torchvision
+RUN pip install opencv-python
