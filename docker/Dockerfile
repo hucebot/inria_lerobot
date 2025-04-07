@@ -4,12 +4,8 @@ FROM nvidia/cuda:12.4.1-base-ubuntu22.04
 ENV DISPLAY=:0
 ENV ROS_DISTRO=noetic
 ENV LIBGL_ALWAYS_INDIRECT=0
-ARG PYTHON_VERSION=3.10
-ENV DEBIAN_FRONTEND=noninteractive
-ENV MUJOCO_GL="egl"
-ENV PATH="/opt/venv/bin:$PATH"
 
-# Configure environment variables
+###### Configure environment variables
 ARG PYTHON_VERSION=3.10
 ENV DEBIAN_FRONTEND=noninteractive
 ENV MUJOCO_GL="egl"
@@ -42,3 +38,6 @@ RUN pip install pyserial \
     feetech-servo-sdk \
     pynput \
     numpy
+
+##### 
+RUN pip install torch torchvision
