@@ -1,5 +1,5 @@
 from scservo_sdk import *
-from utils.constants import *
+from .constants import *
 
 
 class FeetechMotor:

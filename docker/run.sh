@@ -10,6 +10,7 @@ if [ $isRunning -eq 0 ]; then
         -e NVIDIA_DRIVER_CAPABILITIES=all \
         -e XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR \
         -v /tmp/.X11-unix:/tmp/.X11-unix \
+        -e PYTHONPATH=/inria_lerobot/lecontrol:$PYTHONPATH \
         --env QT_X11_NO_MITSHM=1 \
         --net host \
         --privileged \
@@ -20,10 +21,7 @@ if [ $isRunning -eq 0 ]; then
         --device /dev/snd \
         --device /dev/input \
         --device /dev/bus/usb \
-        -v `pwd`/../scripts:/inria_lerobot/scripts \
-        -v `pwd`/../configuration/calibration:/inria_lerobot/calibration \
-        -v `pwd`/../datasets:/inria_lerobot/datasets \
-        -v `pwd`/../configuration/configs.py:/inria_lerobot/scripts/config.py \
+        -v $(pwd):/inria_lerobot/lecontrol \
         -v /media/:/media \
         -w /inria_lerobot \
         inria_lerobot:latest

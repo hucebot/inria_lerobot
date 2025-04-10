@@ -1,17 +1,19 @@
 import os
 import time
 import json
-import argparse
 import numpy as np
 import cv2
 
 from scservo_sdk import *
-from utils.colors import *
-from utils.feetech_motor import FeetechMotor
-from config import *
-from utils.constants import *
 
-with open("/inria_lerobot/calibration/main_follower.json", "r") as f:
+from .utils.colors import *
+from .utils.feetech_motor import FeetechMotor
+from .utils.constants import *
+from .configuration.configs import *
+import pathlib
+
+
+with open(f"{pathlib.Path(__file__).parent.resolve()}/configuration/calibration/main_follower.json", "r") as f:
     calib_follower = json.load(f)
 
 motor_names = calib_follower["motor_names"]
@@ -313,18 +315,3 @@ def run_robot(mode: str, record_dataset: bool, replay_episode: str, dataset_task
     else:
         print(bcolors.FAIL + f"Unknown mode: {mode}. Exiting..." + bcolors.ENDC)
         robot.close_ports()
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Control the So100 Robot.")
-    parser.add_argument("--mode", type=str, default="teleoperation", help="Operation mode.")
-    parser.add_argument("--record_dataset", type=bool, default=False, help="Record dataset?")
-    parser.add_argument("--dataset_task", type=str, default="", help="Dataset task name.")
-    parser.add_argument("--replay_episode", type=str, default="", help="Replay a .npy episode.")
-    args = parser.parse_args()
-
-    run_robot(
-        mode=args.mode,
-        record_dataset=args.record_dataset,
-        replay_episode=args.replay_episode,
-        dataset_task=args.dataset_task
-    )
