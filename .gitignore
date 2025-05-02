@@ -2,6 +2,8 @@
 
 /scripts/config.py
 
+/models
+
 /datasets/*/*.npy
 
 __pycache__

@@ -21,9 +21,10 @@ if [ $isRunning -eq 0 ]; then
         --device /dev/snd \
         --device /dev/input \
         --device /dev/bus/usb \
-        -v $(pwd):/inria_lerobot/lecontrol \
+        -v $(pwd)/../lecontrol/:/inria_lerobot/lecontrol \
+        -v $(pwd)/../ros:/ros_ws/src/inria_lerobot \
         -v /media/:/media \
-        -w /inria_lerobot \
+        -w /inria_lerobot/lecontrol \
         inria_lerobot:latest
 
 else
