@@ -14,19 +14,22 @@ from .utils.constants import *
 from .configuration.configs import *
 import pathlib
 
-
-with open(f"{pathlib.Path(__file__).parent.resolve()}/configuration/calibration/main_follower.json", "r") as f:
-    calib_follower = json.load(f)
-
-motor_names = calib_follower["motor_names"]
-IDs = list(range(1, len(motor_names) + 1))
-
 class So100Robot:
     """
     Manages the control of a follower robotic arm and optionally a leader arm.
     Optionally captures and saves camera frames to a dataset.
     """
     def __init__(self, require_leader_arm=True):
+        base = pathlib.Path(__file__).parent.resolve() / "configuration" / "calibration"
+        with open(base / "main_leader.json", "r") as f:
+            self.calib_leader = json.load(f)
+        with open(base / "main_follower.json", "r") as f:
+            self.calib_follower = json.load(f)
+
+        motor_names = self.calib_follower["motor_names"]
+        self.ids = list(range(1, len(motor_names) + 1))
+
+
         self.require_leader_arm = require_leader_arm
         self.port_follower = PortHandler(PORT_FOLLOWER)
         if not self.port_follower.openPort():
@@ -61,13 +64,31 @@ class So100Robot:
         self.read_initial_state()
 
     def create_arms(self):
-        """Creates FeetechMotor objects for follower and leader arms (if required)."""
-        follower_arm = [FeetechMotor(ID, self.port_follower, PacketHandler(PROTOCOL_END)) for ID in IDs]
+        follower_arm = [
+            FeetechMotor(
+                ID,
+                self.port_follower,
+                PacketHandler(PROTOCOL_END),
+                calibration=self.calib_follower,
+                calib_idx=ID-1
+            )
+            for ID in self.ids
+        ]
         if self.require_leader_arm:
-            leader_arm = [FeetechMotor(ID, self.port_leader, PacketHandler(PROTOCOL_END)) for ID in IDs]
+            leader_arm = [
+                FeetechMotor(
+                    ID,
+                    self.port_leader,
+                    PacketHandler(PROTOCOL_END),
+                    calibration=self.calib_leader,
+                    calib_idx=ID-1
+                )
+                for ID in self.ids
+            ]
         else:
             leader_arm = []
         return leader_arm, follower_arm
+
 
     def init_cameras(self):
         """Initializes cameras defined in config.py."""
@@ -102,7 +123,7 @@ class So100Robot:
     def get_leader_positions(self):
         """Returns the current angles of leader motors or zeros if disabled."""
         if not self.require_leader_arm:
-            return [0.0] * len(IDs)
+            return [0.0] * len(self.ids)
         return [motor.read_position() for motor in self.leader_arm]
 
     def get_follower_positions(self):
@@ -125,43 +146,45 @@ class So100Robot:
             try:
                 try:
                     camera_frames = self.frame_queue.get_nowait()
-                except:
+                except queue.Empty:
                     camera_frames = []
+
                 leader_positions = self.get_leader_positions()
-                if self.require_leader_arm:
-                    delta_angles = [c - i for c, i in zip(leader_positions, self.initial_positions_leader)]
-                else:
-                    delta_angles = [0] * len(IDs)
-                target_angles = [f + d for f, d in zip(self.initial_positions_follower, delta_angles)]
-                self.current_target_angles = target_angles.copy()
-                self.set_follower_positions(target_angles)
+                self.set_follower_positions(leader_positions)
                 follower_positions = self.get_follower_positions()
-                follower_speeds = self.get_follower_speeds()
+                follower_speeds    = self.get_follower_speeds()
                 self.current_follower_positions = follower_positions
-                self.current_follower_speeds = follower_speeds
-                for motor_i, motor_id in enumerate(IDs):
+                self.current_follower_speeds    = follower_speeds
+
+                for idx, motor_id in enumerate(self.ids):
+                    lp = leader_positions[idx] if self.require_leader_arm else 0.0
+                    fp = follower_positions[idx]
                     print(
-                        bcolors.OKBLUE + f"Motor {motor_id}: " + bcolors.ENDC +
-                        (f"Leader angle: {leader_positions[motor_i]:.2f}, " if self.require_leader_arm else "Leader angle: [disabled], ") +
-                        bcolors.OKBLUE + f"Target angle: {target_angles[motor_i]:.2f}, " + bcolors.ENDC +
-                        (f"Delta angle: {delta_angles[motor_i]:.2f}, " if self.require_leader_arm else "") +
-                        bcolors.OKBLUE + f"Follower angle: {follower_positions[motor_i]:.2f}, Follower speed: {follower_speeds[motor_i]}" + bcolors.ENDC
+                        bcolors.OKBLUE + f"Motor {motor_id}:" + bcolors.ENDC,
+                        f"Leader → {lp:6.2f}° |",
+                        bcolors.OKGREEN + f"Follower → {fp:6.2f}°" + bcolors.ENDC
                     )
+
                 if record_dataset:
                     self.record_dataset(camera_frames)
-                    print("-" * 30 + bcolors.WARNING + " Recording " + bcolors.ENDC + "-" * 30)
+                    status = bcolors.WARNING + " Recording " + bcolors.ENDC
                 else:
-                    print("-" * 30 + bcolors.WARNING + " Teleoperation " + bcolors.ENDC + "-" * 30)
+                    status = bcolors.WARNING + " Teleoperation " + bcolors.ENDC
+
+                print("-" * 10 + status + "-" * 10)
                 time.sleep(1 / RATE)
+
             except KeyboardInterrupt:
                 print(bcolors.WARNING + "Keyboard interruption. Ending loop..." + bcolors.ENDC)
                 break
             except Exception as e:
-                print(bcolors.FAIL + "Error: " + str(e) + bcolors.ENDC)
+                print(bcolors.FAIL + "Error in robot loop: " + str(e) + bcolors.ENDC)
                 break
+
         self.close_ports()
         if record_dataset:
             self.save_dataset_to_npy(dataset_path=dataset_path)
+
 
     def record_dataset(self, camera_frames):
         """Records a single step: timestamp, target angles, speeds, and camera frames."""
@@ -238,7 +261,7 @@ class So100Robot:
                 for motor in self.leader_arm:
                     self.initial_positions_leader.append(motor.read_position())
             else:
-                self.initial_positions_leader = [0.0]*len(IDs)
+                self.initial_positions_leader = [0.0]*len(self.ids)
             for motor in self.follower_arm:
                 self.initial_positions_follower.append(motor.read_position())
             print(bcolors.OKGREEN + "Initial leader angles:  " + bcolors.ENDC, self.initial_positions_leader)
