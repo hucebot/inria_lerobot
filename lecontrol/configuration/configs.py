@@ -10,8 +10,8 @@ CAMERAS = [
         'name': 'frontal_camera',
         'width': 640,
         'height': 480,
-        'fps': 60,
-        'camera_id': 8,
+        'fps': 30,
+        'camera_id': 0,
     },
     # {
     #     'name': 'camera_2',

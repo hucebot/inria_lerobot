@@ -1,22 +1,18 @@
 import os
 import time
 import json
-import argparse
-import threading
-import queue
 import numpy as np
 import cv2
+import threading
+import queue
+
 from scservo_sdk import *
-from utils.colors import bcolors
-from utils.feetech_motor import FeetechMotor
-from config import *
-from utils.constants import *
 
-with open("/inria_lerobot/calibration/main_follower.json", "r") as f:
-    calib_follower = json.load(f)
-
-motor_names = calib_follower["motor_names"]
-IDs = list(range(1, len(motor_names) + 1))
+from .utils.colors import *
+from .utils.feetech_motor import FeetechMotor
+from .utils.constants import *
+from .configuration.configs import *
+import pathlib
 
 class So100Robot:
     """
@@ -24,6 +20,16 @@ class So100Robot:
     Optionally captures and saves camera frames to a dataset.
     """
     def __init__(self, require_leader_arm=True):
+        base = pathlib.Path(__file__).parent.resolve() / "configuration" / "calibration"
+        with open(base / "main_leader.json", "r") as f:
+            self.calib_leader = json.load(f)
+        with open(base / "main_follower.json", "r") as f:
+            self.calib_follower = json.load(f)
+
+        motor_names = self.calib_follower["motor_names"]
+        self.ids = list(range(1, len(motor_names) + 1))
+
+
         self.require_leader_arm = require_leader_arm
         self.port_follower = PortHandler(PORT_FOLLOWER)
         if not self.port_follower.openPort():
@@ -58,13 +64,31 @@ class So100Robot:
         self.read_initial_state()
 
     def create_arms(self):
-        """Creates FeetechMotor objects for follower and leader arms (if required)."""
-        follower_arm = [FeetechMotor(ID, self.port_follower, PacketHandler(PROTOCOL_END)) for ID in IDs]
+        follower_arm = [
+            FeetechMotor(
+                ID,
+                self.port_follower,
+                PacketHandler(PROTOCOL_END),
+                calibration=self.calib_follower,
+                calib_idx=ID-1
+            )
+            for ID in self.ids
+        ]
         if self.require_leader_arm:
-            leader_arm = [FeetechMotor(ID, self.port_leader, PacketHandler(PROTOCOL_END)) for ID in IDs]
+            leader_arm = [
+                FeetechMotor(
+                    ID,
+                    self.port_leader,
+                    PacketHandler(PROTOCOL_END),
+                    calibration=self.calib_leader,
+                    calib_idx=ID-1
+                )
+                for ID in self.ids
+            ]
         else:
             leader_arm = []
         return leader_arm, follower_arm
+
 
     def init_cameras(self):
         """Initializes cameras defined in config.py."""
@@ -99,7 +123,7 @@ class So100Robot:
     def get_leader_positions(self):
         """Returns the current angles of leader motors or zeros if disabled."""
         if not self.require_leader_arm:
-            return [0.0] * len(IDs)
+            return [0.0] * len(self.ids)
         return [motor.read_position() for motor in self.leader_arm]
 
     def get_follower_positions(self):
@@ -116,49 +140,48 @@ class So100Robot:
             target_raw = motor.angle_to_raw(angle)
             motor.write_position(target_raw)
 
-    def robot_thread_func(self, record_dataset=False, dataset_task=""):
+    def robot_thread_func(self, record_dataset=False, dataset_path=""):
         """Main loop for controlling the robot."""
         while not self.stop_threads:
             try:
                 try:
                     camera_frames = self.frame_queue.get_nowait()
-                except:
+                except queue.Empty:
                     camera_frames = []
+
                 leader_positions = self.get_leader_positions()
-                if self.require_leader_arm:
-                    delta_angles = [c - i for c, i in zip(leader_positions, self.initial_positions_leader)]
-                else:
-                    delta_angles = [0] * len(IDs)
-                target_angles = [f + d for f, d in zip(self.initial_positions_follower, delta_angles)]
-                self.current_target_angles = target_angles.copy()
-                self.set_follower_positions(target_angles)
+                self.set_follower_positions(leader_positions)
                 follower_positions = self.get_follower_positions()
-                follower_speeds = self.get_follower_speeds()
+                follower_speeds    = self.get_follower_speeds()
                 self.current_follower_positions = follower_positions
-                self.current_follower_speeds = follower_speeds
-                for motor_i, motor_id in enumerate(IDs):
+                self.current_follower_speeds    = follower_speeds
+
+                for idx, motor_id in enumerate(self.ids):
+                    lp = leader_positions[idx] if self.require_leader_arm else 0.0
+                    fp = follower_positions[idx]
                     print(
-                        bcolors.OKBLUE + f"Motor {motor_id}: " + bcolors.ENDC +
-                        (f"Leader angle: {leader_positions[motor_i]:.2f}, " if self.require_leader_arm else "Leader angle: [disabled], ") +
-                        bcolors.OKBLUE + f"Target angle: {target_angles[motor_i]:.2f}, " + bcolors.ENDC +
-                        (f"Delta angle: {delta_angles[motor_i]:.2f}, " if self.require_leader_arm else "") +
-                        bcolors.OKBLUE + f"Follower angle: {follower_positions[motor_i]:.2f}, Follower speed: {follower_speeds[motor_i]}" + bcolors.ENDC
+                        bcolors.OKBLUE + f"Motor {motor_id}:" + bcolors.ENDC,
+                        f"Leader → {lp:6.2f}° |",
+                        bcolors.OKGREEN + f"Follower → {fp:6.2f}°" + bcolors.ENDC
                     )
                 if record_dataset:
                     self.record_dataset(camera_frames)
-                    print("-" * 30 + bcolors.WARNING + " Recording " + bcolors.ENDC + "-" * 30)
+                    status = bcolors.WARNING + " Recording " + bcolors.ENDC
                 else:
-                    print("-" * 30 + bcolors.WARNING + " Teleoperation " + bcolors.ENDC + "-" * 30)
+                    status = bcolors.WARNING + " Teleoperation " + bcolors.ENDC
+
+                print("-" * 10 + status + "-" * 10)
                 time.sleep(1 / RATE)
             except KeyboardInterrupt:
                 print(bcolors.WARNING + "Keyboard interruption. Ending loop..." + bcolors.ENDC)
                 break
             except Exception as e:
-                print(bcolors.FAIL + "Error: " + str(e) + bcolors.ENDC)
+                print(bcolors.FAIL + "Error in robot loop: " + str(e) + bcolors.ENDC)
                 break
         self.close_ports()
         if record_dataset:
-            self.save_dataset_to_npy(dataset_task=dataset_task)
+            self.save_dataset_to_npy(dataset_path=dataset_path)
+
 
     def record_dataset(self, camera_frames):
         """Records a single step: timestamp, target angles, speeds, and camera frames."""
@@ -171,16 +194,14 @@ class So100Robot:
         )
         self.dataset_records.append(data_tuple)
 
-    def save_dataset_to_npy(self, dataset_task=""):
+    def save_dataset_to_npy(self, dataset_path="datasets/"):
         """Saves dataset (timestamps, positions, speeds, frames) as an .npy file."""
-        dataset_task = dataset_task.lower().replace(" ", "_")
-        dir_path = os.path.join('/inria_lerobot/datasets/', dataset_task)
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
-        existing_npy_files = [f for f in os.listdir(dir_path) if f.endswith('.npy')]
+        if not os.path.exists(dataset_path):
+            os.makedirs(dataset_path)
+        existing_npy_files = [f for f in os.listdir(dataset_path) if f.endswith('.npy')]
         total_files = len(existing_npy_files)
         zero_padded_filename = f"{total_files:05d}.npy"
-        full_path = os.path.join(dir_path, zero_padded_filename)
+        full_path = os.path.join(dataset_path, zero_padded_filename)
         timestamps = [rec[0] for rec in self.dataset_records]
         positions  = [rec[1] for rec in self.dataset_records]
         speeds     = [rec[2] for rec in self.dataset_records]
@@ -194,18 +215,16 @@ class So100Robot:
         np.save(full_path, data_dict, allow_pickle=True)
         print(bcolors.OKGREEN + f"Dataset saved to '{full_path}' with {len(self.dataset_records)} records." + bcolors.ENDC)
 
-    def replay_episode(self, replay_episode, dataset_task):
+    def replay_episode(self, replay_episode, dataset_path):
         """
         Replays a recorded episode from a .npy file, setting follower positions over time
         and displaying the saved camera frames.
         """
-        dataset_task = dataset_task.lower().replace(" ", "_")
-        dataset_path = os.path.join('/inria_lerobot/datasets/', dataset_task, replay_episode + ".npy")
         if not os.path.exists(dataset_path):
             print(bcolors.FAIL + f"Dataset not found at: {dataset_path}" + bcolors.ENDC)
             return
         print(bcolors.WARNING + f"Replaying episode from: {dataset_path}" + bcolors.ENDC)
-        data_dict = np.load(dataset_path, allow_pickle=True).item()
+        data_dict = np.load(f"{dataset_path}/{replay_episode}", allow_pickle=True).item()
         timestamps = data_dict["timestamps"]
         all_positions = data_dict["positions"]
         all_frames = data_dict["camera_frames"]
@@ -239,7 +258,7 @@ class So100Robot:
                 for motor in self.leader_arm:
                     self.initial_positions_leader.append(motor.read_position())
             else:
-                self.initial_positions_leader = [0.0]*len(IDs)
+                self.initial_positions_leader = [0.0]*len(self.ids)
             for motor in self.follower_arm:
                 self.initial_positions_follower.append(motor.read_position())
             print(bcolors.OKGREEN + "Initial leader angles:  " + bcolors.ENDC, self.initial_positions_leader)
@@ -264,10 +283,10 @@ class So100Robot:
         except Exception as e:
             print(bcolors.FAIL + "Error closing ports or cameras: " + str(e) + bcolors.ENDC)
 
-    def start_threads(self, record_dataset=False, dataset_task=""):
+    def start_threads(self, record_dataset=False, dataset_path=""):
         """Starts the camera and robot threads."""
         self.camera_thread = threading.Thread(target=self.camera_thread_func)
-        self.robot_thread = threading.Thread(target=self.robot_thread_func, args=(record_dataset, dataset_task))
+        self.robot_thread = threading.Thread(target=self.robot_thread_func, args=(record_dataset, dataset_path))
         self.camera_thread.start()
         self.robot_thread.start()
 
@@ -276,16 +295,16 @@ class So100Robot:
         self.camera_thread.join()
         self.robot_thread.join()
 
-def run_robot(mode, record_dataset, replay_episode, dataset_task):
-    if record_dataset and not dataset_task:
-        print(bcolors.FAIL + "Error: --dataset_task cannot be empty if --record_dataset is True." + bcolors.ENDC)
+def run_robot(mode, record_dataset, replay_episode, dataset_path):
+    if record_dataset and not dataset_path:
+        print(bcolors.FAIL + "Error: --dataset_path cannot be empty if --record_dataset is True." + bcolors.ENDC)
         exit(1)
     require_leader_arm = (not replay_episode)
     robot = So100Robot(require_leader_arm=require_leader_arm)
     if replay_episode:
-        robot.replay_episode(replay_episode, dataset_task)
+        robot.replay_episode(replay_episode, dataset_path)
     elif mode == "teleoperation":
-        robot.start_threads(record_dataset=record_dataset, dataset_task=dataset_task)
+        robot.start_threads(record_dataset=record_dataset, dataset_path=dataset_path)
         try:
             while True:
                 time.sleep(0.1)
@@ -295,17 +314,3 @@ def run_robot(mode, record_dataset, replay_episode, dataset_task):
     else:
         print(bcolors.FAIL + f"Unknown mode: {mode}. Exiting..." + bcolors.ENDC)
         robot.close_ports()
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Control the So100 Robot with threads.")
-    parser.add_argument("--mode", type=str, default="teleoperation", help="Operation mode.")
-    parser.add_argument("--record_dataset", type=bool, default=False, help="Record dataset?")
-    parser.add_argument("--dataset_task", type=str, default="", help="Dataset task name.")
-    parser.add_argument("--replay_episode", type=str, default="", help="Replay a .npy episode.")
-    args = parser.parse_args()
-    run_robot(
-        mode=args.mode,
-        record_dataset=args.record_dataset,
-        replay_episode=args.replay_episode,
-        dataset_task=args.dataset_task
-    )

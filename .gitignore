@@ -3,3 +3,5 @@
 /scripts/config.py
 
 /datasets/*/*.npy
+
+__pycache__
