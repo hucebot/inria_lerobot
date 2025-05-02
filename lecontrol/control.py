@@ -1,25 +1,12 @@
 import os
 import time
 import json
-<<<<<<< HEAD:lecontrol/control.py
 import numpy as np
 import cv2
 import threading
 import queue
 
 from scservo_sdk import *
-=======
-import argparse
-import threading
-import queue
-import numpy as np
-import cv2
-from scservo_sdk import *
-from utils.colors import bcolors
-from utils.feetech_motor import FeetechMotor
-from config import *
-from utils.constants import *
->>>>>>> main:scripts/control_robot.py
 
 from .utils.colors import *
 from .utils.feetech_motor import FeetechMotor
@@ -33,7 +20,6 @@ class So100Robot:
     Optionally captures and saves camera frames to a dataset.
     """
     def __init__(self, require_leader_arm=True):
-<<<<<<< HEAD:lecontrol/control.py
         base = pathlib.Path(__file__).parent.resolve() / "configuration" / "calibration"
         with open(base / "main_leader.json", "r") as f:
             self.calib_leader = json.load(f)
@@ -44,8 +30,6 @@ class So100Robot:
         self.ids = list(range(1, len(motor_names) + 1))
 
 
-=======
->>>>>>> main:scripts/control_robot.py
         self.require_leader_arm = require_leader_arm
         self.port_follower = PortHandler(PORT_FOLLOWER)
         if not self.port_follower.openPort():
@@ -80,7 +64,6 @@ class So100Robot:
         self.read_initial_state()
 
     def create_arms(self):
-<<<<<<< HEAD:lecontrol/control.py
         follower_arm = [
             FeetechMotor(
                 ID,
@@ -102,12 +85,6 @@ class So100Robot:
                 )
                 for ID in self.ids
             ]
-=======
-        """Creates FeetechMotor objects for follower and leader arms (if required)."""
-        follower_arm = [FeetechMotor(ID, self.port_follower, PacketHandler(PROTOCOL_END)) for ID in IDs]
-        if self.require_leader_arm:
-            leader_arm = [FeetechMotor(ID, self.port_leader, PacketHandler(PROTOCOL_END)) for ID in IDs]
->>>>>>> main:scripts/control_robot.py
         else:
             leader_arm = []
         return leader_arm, follower_arm
@@ -163,38 +140,20 @@ class So100Robot:
             target_raw = motor.angle_to_raw(angle)
             motor.write_position(target_raw)
 
-<<<<<<< HEAD:lecontrol/control.py
     def robot_thread_func(self, record_dataset=False, dataset_path=""):
-=======
-    def robot_thread_func(self, record_dataset=False, dataset_task=""):
->>>>>>> main:scripts/control_robot.py
         """Main loop for controlling the robot."""
         while not self.stop_threads:
             try:
                 try:
                     camera_frames = self.frame_queue.get_nowait()
-<<<<<<< HEAD:lecontrol/control.py
                 except queue.Empty:
                     camera_frames = []
 
                 leader_positions = self.get_leader_positions()
                 self.set_follower_positions(leader_positions)
-=======
-                except:
-                    camera_frames = []
-                leader_positions = self.get_leader_positions()
-                if self.require_leader_arm:
-                    delta_angles = [c - i for c, i in zip(leader_positions, self.initial_positions_leader)]
-                else:
-                    delta_angles = [0] * len(IDs)
-                target_angles = [f + d for f, d in zip(self.initial_positions_follower, delta_angles)]
-                self.current_target_angles = target_angles.copy()
-                self.set_follower_positions(target_angles)
->>>>>>> main:scripts/control_robot.py
                 follower_positions = self.get_follower_positions()
                 follower_speeds    = self.get_follower_speeds()
                 self.current_follower_positions = follower_positions
-<<<<<<< HEAD:lecontrol/control.py
                 self.current_follower_speeds    = follower_speeds
 
                 for idx, motor_id in enumerate(self.ids):
@@ -204,40 +163,20 @@ class So100Robot:
                         bcolors.OKBLUE + f"Motor {motor_id}:" + bcolors.ENDC,
                         f"Leader → {lp:6.2f}° |",
                         bcolors.OKGREEN + f"Follower → {fp:6.2f}°" + bcolors.ENDC
-=======
-                self.current_follower_speeds = follower_speeds
-                for motor_i, motor_id in enumerate(IDs):
-                    print(
-                        bcolors.OKBLUE + f"Motor {motor_id}: " + bcolors.ENDC +
-                        (f"Leader angle: {leader_positions[motor_i]:.2f}, " if self.require_leader_arm else "Leader angle: [disabled], ") +
-                        bcolors.OKBLUE + f"Target angle: {target_angles[motor_i]:.2f}, " + bcolors.ENDC +
-                        (f"Delta angle: {delta_angles[motor_i]:.2f}, " if self.require_leader_arm else "") +
-                        bcolors.OKBLUE + f"Follower angle: {follower_positions[motor_i]:.2f}, Follower speed: {follower_speeds[motor_i]}" + bcolors.ENDC
->>>>>>> main:scripts/control_robot.py
                     )
                 if record_dataset:
                     self.record_dataset(camera_frames)
-<<<<<<< HEAD:lecontrol/control.py
                     status = bcolors.WARNING + " Recording " + bcolors.ENDC
                 else:
                     status = bcolors.WARNING + " Teleoperation " + bcolors.ENDC
 
                 print("-" * 10 + status + "-" * 10)
-=======
-                    print("-" * 30 + bcolors.WARNING + " Recording " + bcolors.ENDC + "-" * 30)
-                else:
-                    print("-" * 30 + bcolors.WARNING + " Teleoperation " + bcolors.ENDC + "-" * 30)
->>>>>>> main:scripts/control_robot.py
                 time.sleep(1 / RATE)
             except KeyboardInterrupt:
                 print(bcolors.WARNING + "Keyboard interruption. Ending loop..." + bcolors.ENDC)
                 break
             except Exception as e:
-<<<<<<< HEAD:lecontrol/control.py
                 print(bcolors.FAIL + "Error in robot loop: " + str(e) + bcolors.ENDC)
-=======
-                print(bcolors.FAIL + "Error: " + str(e) + bcolors.ENDC)
->>>>>>> main:scripts/control_robot.py
                 break
         self.close_ports()
         if record_dataset:
@@ -257,23 +196,12 @@ class So100Robot:
 
     def save_dataset_to_npy(self, dataset_path="datasets/"):
         """Saves dataset (timestamps, positions, speeds, frames) as an .npy file."""
-<<<<<<< HEAD:lecontrol/control.py
         if not os.path.exists(dataset_path):
             os.makedirs(dataset_path)
         existing_npy_files = [f for f in os.listdir(dataset_path) if f.endswith('.npy')]
         total_files = len(existing_npy_files)
         zero_padded_filename = f"{total_files:05d}.npy"
         full_path = os.path.join(dataset_path, zero_padded_filename)
-=======
-        dataset_task = dataset_task.lower().replace(" ", "_")
-        dir_path = os.path.join('/inria_lerobot/datasets/', dataset_task)
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
-        existing_npy_files = [f for f in os.listdir(dir_path) if f.endswith('.npy')]
-        total_files = len(existing_npy_files)
-        zero_padded_filename = f"{total_files:05d}.npy"
-        full_path = os.path.join(dir_path, zero_padded_filename)
->>>>>>> main:scripts/control_robot.py
         timestamps = [rec[0] for rec in self.dataset_records]
         positions  = [rec[1] for rec in self.dataset_records]
         speeds     = [rec[2] for rec in self.dataset_records]
@@ -296,11 +224,7 @@ class So100Robot:
             print(bcolors.FAIL + f"Dataset not found at: {dataset_path}" + bcolors.ENDC)
             return
         print(bcolors.WARNING + f"Replaying episode from: {dataset_path}" + bcolors.ENDC)
-<<<<<<< HEAD:lecontrol/control.py
         data_dict = np.load(f"{dataset_path}/{replay_episode}", allow_pickle=True).item()
-=======
-        data_dict = np.load(dataset_path, allow_pickle=True).item()
->>>>>>> main:scripts/control_robot.py
         timestamps = data_dict["timestamps"]
         all_positions = data_dict["positions"]
         all_frames = data_dict["camera_frames"]
