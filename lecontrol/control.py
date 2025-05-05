@@ -188,14 +188,15 @@ class So100Robot:
         timestamp = time.time()
         data_tuple = (
             timestamp,
-            self.current_target_angles.copy(),
-            self.current_follower_speeds.copy(),
+            self.get_leader_positions(),
+            self.get_follower_speeds(),
             camera_frames
         )
         self.dataset_records.append(data_tuple)
 
     def save_dataset_to_npy(self, dataset_path="datasets/"):
         """Saves dataset (timestamps, positions, speeds, frames) as an .npy file."""
+        dataset_path = os.path.join('/inria_lerobot/lecontrol/datasets', dataset_path)
         if not os.path.exists(dataset_path):
             os.makedirs(dataset_path)
         existing_npy_files = [f for f in os.listdir(dataset_path) if f.endswith('.npy')]
@@ -220,6 +221,7 @@ class So100Robot:
         Replays a recorded episode from a .npy file, setting follower positions over time
         and displaying the saved camera frames.
         """
+        dataset_path = os.path.join('/inria_lerobot/lecontrol/datasets', dataset_path)
         if not os.path.exists(dataset_path):
             print(bcolors.FAIL + f"Dataset not found at: {dataset_path}" + bcolors.ENDC)
             return

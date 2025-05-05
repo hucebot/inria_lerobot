@@ -23,7 +23,7 @@ if [ $isRunning -eq 0 ]; then
         --device /dev/bus/usb \
         -v $(pwd)/../:/inria_lerobot/lecontrol \
         -v /media/:/media \
-        -w /inria_lerobot \
+        -w /inria_lerobot/lecontrol/scripts \
         inria_lerobot:latest
 
 else
