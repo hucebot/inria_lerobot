@@ -43,3 +43,16 @@ RUN pip install pyserial \
 RUN pip install torch torchvision
 RUN pip install opencv-python
 RUN pip install torchdiffeq pandas matplotlib
+RUN pip install streamdeck pillow 
+
+###### Install packages for libusb
+RUN apt-get install -yy python3-setuptools \
+    && apt-get install -yy python3-pip \
+    && apt-get install -yy python3-dev \
+    && apt-get install -yy libusb-1.0-0-dev \
+    && apt-get install -yy libudev-dev \
+    && apt-get install -yy libhidapi-libusb0 \
+    && apt-get install -yy libjpeg-dev \
+    && apt-get install -yy zlib1g-dev \
+    && apt-get install -yy libopenjp2-7 \
+    && apt-get install -yy libtiff5
