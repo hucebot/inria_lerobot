@@ -14,6 +14,8 @@ from .utils.constants import *
 from .configuration.configs import *
 import pathlib
 
+from .utils.stream_deck import StreamDeck
+
 class So100Robot:
     """
     Manages the control of a follower robotic arm and optionally a leader arm.
@@ -28,6 +30,10 @@ class So100Robot:
 
         motor_names = self.calib_follower["motor_names"]
         self.ids = list(range(1, len(motor_names) + 1))
+
+        self.recording = False
+        self.data_recorded = False
+        self.dataset_path = ""
 
 
         self.require_leader_arm = require_leader_arm
@@ -62,6 +68,33 @@ class So100Robot:
         self.robot_thread = None
         self.init_cameras()
         self.read_initial_state()
+
+    def toggle_recording(self):
+        """Toggles recording on and off. If recording is stopped, saves the dataset to a .npy file.
+        """
+        self.recording = not self.recording
+
+        if self.recording:
+            self.data_recorded = False
+            self.dataset_records.clear()
+            print(bcolors.OKGREEN + "Recording started." + bcolors.ENDC)
+        else:
+            print(bcolors.WARNING + "Recording stopped." + bcolors.ENDC)
+            if self.data_recorded:
+                print(bcolors.OKGREEN + "Saving dataset..." + bcolors.ENDC)
+                self.save_dataset_to_npy(dataset_path=self.dataset_path)
+                self.data_recorded = False
+
+    def delete_last_record(self):
+        folder = os.path.join('/inria_lerobot/lecontrol/datasets', self.dataset_path)
+        files = sorted(f for f in os.listdir(folder) if f.endswith('.npy'))
+        if not files:
+            print(bcolors.FAIL + "No files to delete." + bcolors.ENDC)
+            return
+        last_file = files[-1]
+        last_file_path = os.path.join(folder, last_file)
+        os.remove(last_file_path)
+        print(bcolors.OKGREEN + f"Deleted last file: {last_file_path}" + bcolors.ENDC)
 
     def create_arms(self):
         follower_arm = [
@@ -140,7 +173,7 @@ class So100Robot:
             target_raw = motor.angle_to_raw(angle)
             motor.write_position(target_raw)
 
-    def robot_thread_func(self, record_dataset=False, dataset_path=""):
+    def robot_thread_func(self):
         """Main loop for controlling the robot."""
         while not self.stop_threads:
             try:
@@ -149,10 +182,11 @@ class So100Robot:
                 except queue.Empty:
                     camera_frames = []
 
-                leader_positions = self.get_leader_positions()
+                leader_positions   = self.get_leader_positions()
                 self.set_follower_positions(leader_positions)
                 follower_positions = self.get_follower_positions()
                 follower_speeds    = self.get_follower_speeds()
+
                 self.current_follower_positions = follower_positions
                 self.current_follower_speeds    = follower_speeds
 
@@ -164,24 +198,25 @@ class So100Robot:
                         f"Leader → {lp:6.2f}° |",
                         bcolors.OKGREEN + f"Follower → {fp:6.2f}°" + bcolors.ENDC
                     )
-                if record_dataset:
+
+                if self.recording:
                     self.record_dataset(camera_frames)
+                    self.data_recorded = True
                     status = bcolors.WARNING + " Recording " + bcolors.ENDC
                 else:
                     status = bcolors.WARNING + " Teleoperation " + bcolors.ENDC
 
                 print("-" * 10 + status + "-" * 10)
                 time.sleep(1 / RATE)
+
             except KeyboardInterrupt:
                 print(bcolors.WARNING + "Keyboard interruption. Ending loop..." + bcolors.ENDC)
                 break
             except Exception as e:
                 print(bcolors.FAIL + "Error in robot loop: " + str(e) + bcolors.ENDC)
                 break
-        self.close_ports()
-        if record_dataset:
-            self.save_dataset_to_npy(dataset_path=dataset_path)
 
+        self.close_ports()
 
     def record_dataset(self, camera_frames):
         """Records a single step: timestamp, target angles, speeds, and camera frames."""
@@ -285,10 +320,10 @@ class So100Robot:
         except Exception as e:
             print(bcolors.FAIL + "Error closing ports or cameras: " + str(e) + bcolors.ENDC)
 
-    def start_threads(self, record_dataset=False, dataset_path=""):
+    def start_threads(self):
         """Starts the camera and robot threads."""
         self.camera_thread = threading.Thread(target=self.camera_thread_func)
-        self.robot_thread = threading.Thread(target=self.robot_thread_func, args=(record_dataset, dataset_path))
+        self.robot_thread = threading.Thread(target=self.robot_thread_func)
         self.camera_thread.start()
         self.robot_thread.start()
 
@@ -297,22 +332,24 @@ class So100Robot:
         self.camera_thread.join()
         self.robot_thread.join()
 
-def run_robot(mode, record_dataset, replay_episode, dataset_path):
-    if record_dataset and not dataset_path:
-        print(bcolors.FAIL + "Error: --dataset_path cannot be empty if --record_dataset is True." + bcolors.ENDC)
-        exit(1)
-    require_leader_arm = (not replay_episode)
-    robot = So100Robot(require_leader_arm=require_leader_arm)
+def run_robot(mode, dataset_path, replay_episode):
     if replay_episode:
+        robot = So100Robot(require_leader_arm=False)
         robot.replay_episode(replay_episode, dataset_path)
+
     elif mode == "teleoperation":
-        robot.start_threads(record_dataset=record_dataset, dataset_path=dataset_path)
+        robot = So100Robot(require_leader_arm=True)
+        robot.dataset_path = dataset_path
+        stream_deck = StreamDeck(robot)
+        robot.start_threads()
+
         try:
             while True:
                 time.sleep(0.1)
         except KeyboardInterrupt:
             robot.stop_threads = True
             robot.join_threads()
+
     else:
         print(bcolors.FAIL + f"Unknown mode: {mode}. Exiting..." + bcolors.ENDC)
         robot.close_ports()
