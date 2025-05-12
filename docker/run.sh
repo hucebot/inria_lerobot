@@ -24,7 +24,7 @@ if [ $isRunning -eq 0 ]; then
         -v $(pwd)/../lecontrol/:/inria_lerobot/lecontrol \
         -v $(pwd)/../ros:/ros_ws/src/inria_lerobot \
         -v /media/:/media \
-        -w /inria_lerobot/lecontrol \
+        -w /ros_ws/ \
         inria_lerobot:latest
 
 else

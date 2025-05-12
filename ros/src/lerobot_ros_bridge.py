@@ -96,7 +96,7 @@ class ActPolicyNode:
             obs = {k: v.to(self.device) for k, v in obs.items()}
 
             with torch.no_grad():
-                action = self.policy(obs)  # tensor shape [1, N]
+                action = self.policy(obs)
 
             action_np = action.squeeze(0).cpu().numpy()
 
