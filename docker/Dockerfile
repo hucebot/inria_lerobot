@@ -77,3 +77,15 @@ RUN python3.10 -m pip install --upgrade pip setuptools wheel && \
     pynput numpy lerobot && \
     python3.10 -m pip install --no-cache-dir \
     torch torchvision torchdiffeq opencv-python pandas matplotlib pyserial feetech-servo-sdk
+
+RUN apt-get update && apt-get -y upgrade
+RUN apt-get -y install python3-catkin-tools
+
+##### Install lerobot github repo
+WORKDIR /deps/lerobot
+RUN git clone https://github.com/huggingface/lerobot.git
+RUN pip install --upgrade --force-reinstall --ignore-installed blinker
+WORKDIR /deps/lerobot/lerobot
+RUN pip install -e .
+
+RUN pip install termcolor

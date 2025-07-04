@@ -2,7 +2,7 @@
 
 /scripts/config.py
 
-/models
+/model
 
 /datasets/*/*.npy
 

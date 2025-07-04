@@ -69,3 +69,5 @@ TODO
 
 ## Evaluation
 TODO
+
+catkin build --cmake-args -DCMAKE_POLICY_VERSION_MINIMUM=3.5
